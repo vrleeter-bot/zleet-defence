@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Z.LEET — Игры</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#0a0b12;
+  --line:rgba(255,106,61,.28);
+  --line-dim:rgba(255,255,255,.10);
+  --acc:#ff6a3d;
+  --gold:#e7b95d;
+  --txt:#f3f4f8;
+  --dim:#8890a4;
+  --mono:'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:radial-gradient(1200px 800px at 50% -10%, #1a1420 0%, #0a0b12 55%, #060709 100%);
+  color:var(--txt);
+  font-family:var(--mono);
+  min-height:100dvh;
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+}
+#app{
+  min-height:100dvh;
+  padding: calc(20px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:22px;
+}
+#topbar{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:6px}
+.brand{font-size:12px;letter-spacing:4px;color:var(--acc);font-weight:800}
+.title{font-size:12px;letter-spacing:2.5px;color:var(--dim)}
+
+.cardsWrap{display:flex;flex-direction:column;gap:16px;width:100%;max-width:360px}
+.card{
+  display:flex;align-items:center;gap:14px;
+  padding:18px;border-radius:16px;
+  background:rgba(18,20,31,.7);border:1px solid var(--line-dim);
+  backdrop-filter:blur(8px);
+  text-align:left;color:var(--txt);
+  text-decoration:none;
+  transition:.15s;
+}
+.card:active{transform:scale(.97)}
+.cardIcon{
+  width:52px;height:52px;flex-shrink:0;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  background:rgba(255,106,61,.10);border:1px solid var(--line);
+}
+.cardBody{flex:1;min-width:0}
+.cardTitle{font-size:14px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;margin-bottom:3px}
+.cardDesc{font-size:11px;color:var(--dim);line-height:1.4}
+.cardArrow{font-size:18px;color:var(--dim);flex-shrink:0}
+
+.card.roulette .cardIcon{background:rgba(231,185,93,.10);border-color:rgba(231,185,93,.35)}
+.card.roulette .cardTitle{color:var(--gold)}
+.card.defence .cardTitle{color:var(--acc)}
+
+.footNote{font-size:10px;color:var(--dim);text-align:center;max-width:300px;line-height:1.5;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand">Z.LEET</div>
+    <div class="title">ВЫБЕРИТЕ ИГРУ</div>
+  </header>
+
+  <div class="cardsWrap">
+    <a class="card defence" id="cardDefence" href="https://t.me/zleet_defence_bot/zleet_defence">
+      <div class="cardIcon">🧟</div>
+      <div class="cardBody">
+        <div class="cardTitle">Оборона страницы</div>
+        <div class="cardDesc">Защити страницу от зомби лучами из глаз</div>
+      </div>
+      <div class="cardArrow">›</div>
+    </a>
+
+    <a class="card roulette" id="cardRoulette" href="https://t.me/zleet_defence_bot/roulette">
+      <div class="cardIcon">🎰</div>
+      <div class="cardBody">
+        <div class="cardTitle">Рулетка</div>
+        <div class="cardDesc">Европейское колесо, полный стол ставок</div>
+      </div>
+      <div class="cardArrow">›</div>
+    </a>
+  </div>
+
+  <div class="footNote">Виртуальные игры для развлечения. Без реальных денег и ставок.</div>
+</div>
+
+<script>
+(function(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if(tg){
+    try{tg.ready();}catch(e){}
+    try{tg.expand();}catch(e){}
+    try{tg.disableVerticalSwipes && tg.disableVerticalSwipes();}catch(e){}
+    try{tg.setHeaderColor && tg.setHeaderColor('#0a0b12');}catch(e){}
+    try{tg.setBackgroundColor && tg.setBackgroundColor('#0a0b12');}catch(e){}
+    try{tg.setBottomBarColor && tg.setBottomBarColor('#0a0b12');}catch(e){}
+  }
+  function haptic(type){
+    if(!tg || !tg.HapticFeedback) return;
+    try{ tg.HapticFeedback.impactOccurred(type || 'light'); }catch(e){}
+  }
+  function wireCard(id, url){
+    var el = document.getElementById(id);
+    el.addEventListener('click', function(ev){
+      ev.preventDefault();
+      haptic('medium');
+      if(tg && tg.openTelegramLink){
+        try{ tg.openTelegramLink(url); return; }catch(e){}
+      }
+      window.location.href = url;
+    });
+  }
+  wireCard('cardDefence', 'https://t.me/zleet_defence_bot/zleet_defence');
+  wireCard('cardRoulette', 'https://t.me/zleet_defence_bot/roulette');
+})();
+</script>
+</body>
+</html>
