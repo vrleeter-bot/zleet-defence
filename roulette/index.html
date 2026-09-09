@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Рулетка — Z.LEET</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{
+  --bg:#0a0d0b;
+  --felt:#0e1a14;
+  --felt2:#0b1410;
+  --line:rgba(255,106,61,.28);
+  --line-dim:rgba(255,255,255,.10);
+  --acc:#ff6a3d;
+  --gold:#e7b95d;
+  --red:#c82e2e;
+  --redL:#e6493f;
+  --black:#181a1f;
+  --green:#0e7a4a;
+  --txt:#f3f4f8;
+  --dim:#8b93a1;
+  --mono:'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  background:radial-gradient(1100px 700px at 50% -10%, #142018 0%, #0a0d0b 55%, #050605 100%);
+  color:var(--txt);
+  font-family:var(--mono);
+  min-height:100dvh;
+  overflow:hidden;
+  user-select:none;
+  -webkit-user-select:none;
+}
+#app{
+  min-height:100dvh;
+  padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;
+  gap:8px;
+}
+
+#topbar{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding:0 4px}
+.brandWrap{display:flex;flex-direction:column}
+.brand{font-size:10px;letter-spacing:3px;color:var(--acc);font-weight:800}
+.title{font-size:10.5px;letter-spacing:2px;color:var(--dim)}
+.balanceWrap{display:flex;align-items:center;gap:8px}
+.balanceBox{text-align:right}
+.balanceLabel{font-size:8.5px;letter-spacing:1.5px;color:var(--dim)}
+.balanceVal{font-size:15px;font-weight:800;color:var(--gold)}
+#resetBtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line-dim);background:rgba(255,255,255,.04);color:var(--dim);font-size:14px;display:flex;align-items:center;justify-content:center}
+
+#wheelSection{display:flex;align-items:center;justify-content:center;gap:14px;flex-shrink:0;padding:2px 0}
+.wheelBox{position:relative;width:112px;height:112px;flex-shrink:0}
+.wheelFace{position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.12), 0 0 18px rgba(0,0,0,.5)}
+.wheelHub{position:absolute;left:50%;top:50%;width:26px;height:26px;background:radial-gradient(circle at 35% 30%, #3a3f4a, #101216);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(255,255,255,.15)}
+.wheelPointer{position:absolute;left:50%;top:-5px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid var(--acc);transform:translateX(-50%);filter:drop-shadow(0 0 4px rgba(255,106,61,.6))}
+.ballHolder{position:absolute;inset:0;transition:transform 3.2s cubic-bezier(.12,.66,.16,1)}
+.ball{position:absolute;left:50%;top:2px;width:8px;height:8px;background:#fff;border-radius:50%;transform:translateX(-50%);box-shadow:0 0 5px rgba(255,255,255,.8)}
+.numLabel{position:absolute;left:50%;top:50%;font-size:6.5px;font-weight:700;color:rgba(255,255,255,.85);transform-origin:0 0;pointer-events:none}
+
+.resultBox{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:96px}
+.resultLabel{font-size:8.5px;letter-spacing:1.5px;color:var(--dim)}
+#resultNum{width:46px;height:46px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;border:1px solid var(--line-dim);background:rgba(255,255,255,.03)}
+#resultNum.red{background:var(--red);border-color:var(--redL);color:#fff}
+#resultNum.black{background:var(--black);border-color:rgba(255,255,255,.25);color:#fff}
+#resultNum.green{background:var(--green);border-color:#22c07f;color:#fff}
+#resultText{font-size:9.5px;color:var(--dim);max-width:130px;line-height:1.35}
+
+#chipRow{display:flex;gap:6px;justify-content:center;flex-shrink:0;overflow-x:auto;padding:2px 4px}
+.chip{flex-shrink:0;width:40px;height:40px;border-radius:50%;border:2px dashed rgba(255,255,255,.25);background:radial-gradient(circle at 35% 30%, #23283a, #12141d);color:var(--txt);font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.chip.active{border:2px solid var(--gold);color:var(--gold);box-shadow:0 0 10px rgba(231,185,93,.35)}
+
+#tableWrap{flex:1;overflow:auto;border-radius:14px;background:linear-gradient(180deg, var(--felt), var(--felt2));border:1px solid var(--line-dim);padding:8px;min-height:0}
+.zeroCell{grid-column:1/14;grid-row:1;background:var(--green);border:1px solid #22c07f;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#fff;position:relative}
+.grid{display:grid;grid-template-columns:repeat(12,42px) 46px;grid-template-rows:38px repeat(3,42px) 34px 34px;gap:3px;width:max-content}
+.cell{border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;position:relative;color:#fff;font-size:13px}
+.cell.red{background:var(--red);border:1px solid var(--redL)}
+.cell.black{background:var(--black);border:1px solid rgba(255,255,255,.22)}
+.cell.colbet{background:rgba(255,255,255,.05);border:1px solid var(--line-dim);color:var(--dim);font-size:9px;letter-spacing:.5px;text-align:center;line-height:1.2}
+.cell.outside{background:rgba(255,255,255,.05);border:1px solid var(--line-dim);color:var(--txt);font-size:10px;letter-spacing:.5px;text-align:center;line-height:1.25;padding:2px}
+.cell.outside.redtxt{color:var(--redL)}
+.cell.dozen{background:rgba(255,255,255,.05);border:1px solid var(--line-dim);color:var(--dim);font-size:9.5px;letter-spacing:.5px}
+.cell .badge{position:absolute;bottom:-4px;right:-4px;min-width:16px;height:16px;padding:0 3px;border-radius:999px;background:var(--gold);color:#1a1206;font-size:8.5px;font-weight:800;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.3)}
+.cell.win{outline:2px solid var(--gold);box-shadow:0 0 10px rgba(231,185,93,.6)}
+
+#footerBar{display:flex;align-items:center;gap:8px;flex-shrink:0;padding:0 4px}
+#stakeInfo{font-size:10px;color:var(--dim);flex-shrink:0}
+#stakeInfo b{color:var(--txt)}
+#clearBtn{flex-shrink:0;padding:12px 14px;border-radius:12px;border:1px solid var(--line-dim);background:rgba(255,255,255,.04);color:var(--dim);font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:1px}
+#spinBtn{flex:1;padding:14px;border-radius:12px;border:1px solid var(--line);background:linear-gradient(180deg, rgba(255,106,61,.28), rgba(255,106,61,.10));color:var(--acc);font-family:var(--mono);font-size:13px;font-weight:800;letter-spacing:2px;box-shadow:0 0 16px rgba(255,106,61,.18)}
+#spinBtn:disabled{opacity:.4}
+#clearBtn:disabled{opacity:.4}
+
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);opacity:0;background:rgba(15,17,25,.95);border:1px solid var(--line);color:var(--txt);padding:12px 18px;border-radius:12px;font-size:12px;font-weight:700;letter-spacing:.5px;text-align:center;z-index:60;transition:.25s;pointer-events:none;max-width:88vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brandWrap">
+      <div class="brand">Z.LEET</div>
+      <div class="title">РУЛЕТКА</div>
+    </div>
+    <div class="balanceWrap">
+      <div class="balanceBox">
+        <div class="balanceLabel">БАЛАНС</div>
+        <div class="balanceVal" id="balanceVal">10 000</div>
+      </div>
+      <button id="resetBtn" type="button" title="Сбросить баланс">⟳</button>
+    </div>
+  </header>
+
+  <section id="wheelSection">
+    <div class="wheelBox">
+      <div class="wheelFace" id="wheelFace"></div>
+      <div class="ballHolder" id="ballHolder"><div class="ball"></div></div>
+      <div class="wheelHub"></div>
+      <div class="wheelPointer"></div>
+    </div>
+    <div class="resultBox">
+      <div class="resultLabel">ВЫПАЛО</div>
+      <div id="resultNum">—</div>
+      <div id="resultText">Сделайте ставку и крутите колесо</div>
+    </div>
+  </section>
+
+  <div id="chipRow"></div>
+
+  <div id="tableWrap">
+    <div class="grid" id="bettingGrid"></div>
+  </div>
+
+  <div id="footerBar">
+    <div id="stakeInfo">СТАВКА<br><b id="stakeVal">0</b></div>
+    <button id="clearBtn" type="button">ОЧИСТИТЬ</button>
+    <button id="spinBtn" type="button" disabled>КРУТИТЬ</button>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+(function(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  if(tg){
+    try{tg.ready();}catch(e){}
+    try{tg.expand();}catch(e){}
+    try{tg.disableVerticalSwipes && tg.disableVerticalSwipes();}catch(e){}
+    try{tg.setHeaderColor && tg.setHeaderColor('#0a0d0b');}catch(e){}
+    try{tg.setBackgroundColor && tg.setBackgroundColor('#0a0d0b');}catch(e){}
+    try{tg.setBottomBarColor && tg.setBottomBarColor('#0a0d0b');}catch(e){}
+  }
+  function haptic(type){
+    if(!tg || !tg.HapticFeedback) return;
+    try{
+      if(type==='light'||type==='medium'||type==='heavy') tg.HapticFeedback.impactOccurred(type);
+      else if(type==='success'||type==='error'||type==='warning') tg.HapticFeedback.notificationOccurred(type);
+      else if(type==='selection') tg.HapticFeedback.selectionChanged();
+    }catch(e){}
+  }
+  var audioCtx = null;
+  function playTone(freq, dur, type, vol){
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      var o = audioCtx.createOscillator(); var g = audioCtx.createGain();
+      o.type = type; o.frequency.value = freq; g.gain.value = vol;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+      o.stop(audioCtx.currentTime + dur);
+    }catch(e){}
+  }
+
+  var WHEEL_ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+  var RED_SET = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+  var SEG = 360/37;
+
+  function colorOf(n){ if(n===0) return 'green'; return RED_SET.has(n) ? 'red' : 'black'; }
+
+  // build wheel face conic-gradient + number labels
+  var wheelFace = document.getElementById('wheelFace');
+  var grad = [];
+  WHEEL_ORDER.forEach(function(n, i){
+    var col = colorOf(n) === 'red' ? '#c82e2e' : (colorOf(n)==='green' ? '#0e7a4a' : '#181a1f');
+    grad.push(col + ' ' + (i*SEG).toFixed(3) + 'deg ' + ((i+1)*SEG).toFixed(3) + 'deg');
+  });
+  wheelFace.style.background = 'conic-gradient(from 0deg, ' + grad.join(', ') + ')';
+
+  var ballHolder = document.getElementById('ballHolder');
+  var wheelRotation = 0;
+
+  function angleForNumber(n){
+    var idx = WHEEL_ORDER.indexOf(n);
+    return idx*SEG + SEG/2;
+  }
+  function spinBallTo(n, cb){
+    var target = angleForNumber(n);
+    var curMod = ((wheelRotation % 360) + 360) % 360;
+    var delta = ((target - curMod) + 360) % 360;
+    var spins = 6;
+    wheelRotation += spins*360 + delta;
+    ballHolder.style.transform = 'rotate(' + wheelRotation + 'deg)';
+    setTimeout(cb, 3300);
+  }
+
+  // betting grid build
+  var bettingGrid = document.getElementById('bettingGrid');
+  var bets = {}; // key -> amount
+  var balance = 10000;
+  var STARTING_BALANCE = 10000;
+  var currentChip = 25;
+  var spinning = false;
+
+  function addCell(el){ bettingGrid.appendChild(el); return el; }
+
+  // zero
+  var zero = document.createElement('div');
+  zero.className = 'zeroCell';
+  zero.dataset.key = 'num-0';
+  zero.textContent = '0';
+  addCell(zero);
+
+  // numbers 1-36
+  for(var n=1;n<=36;n++){
+    var col = Math.ceil(n/3);
+    var mod = n%3;
+    var row = mod===0 ? 2 : (mod===2 ? 3 : 4); // row2=top(mult of3), row3=mid, row4=bottom ; rows shifted by +1 (row1=zero)
+    var cell = document.createElement('div');
+    cell.className = 'cell ' + (RED_SET.has(n)?'red':'black');
+    cell.style.gridColumn = col;
+    cell.style.gridRow = row;
+    cell.dataset.key = 'num-'+n;
+    cell.textContent = n;
+    addCell(cell);
+  }
+
+  // column bets (2 to 1) at col13, rows 2-4
+  var colBetDefs = [
+    {row:2, key:'col3', label:'2:1'}, // top row -> multiples of 3
+    {row:3, key:'col2', label:'2:1'}, // mid row
+    {row:4, key:'col1', label:'2:1'}  // bottom row
+  ];
+  colBetDefs.forEach(function(d){
+    var c = document.createElement('div');
+    c.className = 'cell colbet';
+    c.style.gridColumn = 13;
+    c.style.gridRow = d.row;
+    c.dataset.key = d.key;
+    c.textContent = d.label;
+    addCell(c);
+  });
+
+  // dozens row5
+  var dozenDefs = [
+    {key:'dozen1', label:'1-12', cols:'1 / 5'},
+    {key:'dozen2', label:'13-24', cols:'5 / 9'},
+    {key:'dozen3', label:'25-36', cols:'9 / 13'}
+  ];
+  dozenDefs.forEach(function(d){
+    var c = document.createElement('div');
+    c.className = 'cell dozen';
+    c.style.gridColumn = d.cols;
+    c.style.gridRow = 5;
+    c.dataset.key = d.key;
+    c.textContent = d.label;
+    addCell(c);
+  });
+
+  // even-money row6
+  var outsideDefs = [
+    {key:'low', label:'1-18', cols:'1 / 3', red:false},
+    {key:'even', label:'ЧЁТ', cols:'3 / 5', red:false},
+    {key:'red', label:'КРАСНОЕ', cols:'5 / 7', red:true},
+    {key:'black', label:'ЧЁРНОЕ', cols:'7 / 9', red:false},
+    {key:'odd', label:'НЕЧЕТ', cols:'9 / 11', red:false},
+    {key:'high', label:'19-36', cols:'11 / 13', red:false}
+  ];
+  outsideDefs.forEach(function(d){
+    var c = document.createElement('div');
+    c.className = 'cell outside' + (d.red?' redtxt':'');
+    c.style.gridColumn = d.cols;
+    c.style.gridRow = 6;
+    c.dataset.key = d.key;
+    c.textContent = d.label;
+    addCell(c);
+  });
+
+  // chip selector
+  var chipRow = document.getElementById('chipRow');
+  var CHIP_VALUES = [10,25,50,100,500,1000];
+  CHIP_VALUES.forEach(function(v){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (v===currentChip ? ' active' : '');
+    b.textContent = v>=1000 ? (v/1000)+'K' : v;
+    b.dataset.val = v;
+    b.onclick = function(){
+      currentChip = parseInt(this.dataset.val,10);
+      Array.prototype.forEach.call(chipRow.querySelectorAll('.chip'), function(x){ x.classList.remove('active'); });
+      this.classList.add('active');
+      haptic('selection');
+    };
+    chipRow.appendChild(b);
+  });
+
+  function fmt(v){ return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function updateBalanceUI(){ document.getElementById('balanceVal').textContent = fmt(balance); }
+  function totalStake(){ return Object.keys(bets).reduce(function(s,k){ return s+bets[k]; }, 0); }
+  function updateStakeUI(){
+    var t = totalStake();
+    document.getElementById('stakeVal').textContent = fmt(t);
+    document.getElementById('spinBtn').disabled = spinning || t<=0;
+    document.getElementById('clearBtn').disabled = spinning || t<=0;
+  }
+  updateBalanceUI();
+  updateStakeUI();
+
+  function cellByKey(key){ return bettingGrid.querySelector('[data-key="'+key+'"]'); }
+
+  function placeBet(key){
+    if(spinning) return;
+    if(balance < currentChip){ haptic('warning'); showToast('Недостаточно фишек'); return; }
+    balance -= currentChip;
+    bets[key] = (bets[key]||0) + currentChip;
+    updateBalanceUI();
+    renderBadge(key);
+    updateStakeUI();
+    haptic('light');
+    playTone(700,.05,'square',.08);
+  }
+
+  function renderBadge(key){
+    var cell = cellByKey(key);
+    if(!cell) return;
+    var badge = cell.querySelector('.badge');
+    if(!badge){
+      badge = document.createElement('div');
+      badge.className = 'badge';
+      cell.appendChild(badge);
+    }
+    badge.textContent = bets[key]>=1000 ? (bets[key]/1000)+'K' : bets[key];
+  }
+
+  bettingGrid.addEventListener('click', function(ev){
+    var cell = ev.target.closest('[data-key]');
+    if(!cell) return;
+    placeBet(cell.dataset.key);
+  });
+
+  document.getElementById('clearBtn').onclick = function(){
+    if(spinning) return;
+    var refund = totalStake();
+    balance += refund;
+    bets = {};
+    Array.prototype.forEach.call(bettingGrid.querySelectorAll('.badge'), function(b){ b.remove(); });
+    Array.prototype.forEach.call(bettingGrid.querySelectorAll('.cell.win'), function(c){ c.classList.remove('win'); });
+    updateBalanceUI();
+    updateStakeUI();
+    haptic('light');
+  };
+
+  document.getElementById('resetBtn').onclick = function(){
+    if(spinning) return;
+    var refund = totalStake();
+    bets = {};
+    Array.prototype.forEach.call(bettingGrid.querySelectorAll('.badge'), function(b){ b.remove(); });
+    balance = STARTING_BALANCE;
+    updateBalanceUI();
+    updateStakeUI();
+    haptic('warning');
+    showToast('Баланс сброшен до ' + fmt(STARTING_BALANCE));
+  };
+
+  var toastTimer = null;
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 2600);
+  }
+
+  function betWinKeysFor(n){
+    var keys = ['num-'+n];
+    if(n===0) return keys;
+    keys.push(colorOf(n));
+    keys.push(n%2===0 ? 'even' : 'odd');
+    keys.push(n<=18 ? 'low' : 'high');
+    keys.push(n<=12 ? 'dozen1' : (n<=24 ? 'dozen2' : 'dozen3'));
+    var mod = n%3;
+    keys.push(mod===1 ? 'col1' : (mod===2 ? 'col2' : 'col3'));
+    return keys;
+  }
+  var PAYOUT = { num:36, color:2, evenodd:2, lowhigh:2, dozen:3, col:3 };
+  function payoutMultiplierFor(key){
+    if(key.indexOf('num-')===0) return PAYOUT.num;
+    if(key==='red'||key==='black') return PAYOUT.color;
+    if(key==='even'||key==='odd') return PAYOUT.evenodd;
+    if(key==='low'||key==='high') return PAYOUT.lowhigh;
+    if(key.indexOf('dozen')===0) return PAYOUT.dozen;
+    if(key.indexOf('col')===0) return PAYOUT.col;
+    return 0;
+  }
+
+  document.getElementById('spinBtn').onclick = function(){
+    if(spinning || totalStake()<=0) return;
+    spinning = true;
+    updateStakeUI();
+    document.getElementById('resultText').textContent = 'Колесо крутится...';
+    document.getElementById('resultNum').textContent = '•';
+    document.getElementById('resultNum').className = '';
+    haptic('medium');
+    Array.prototype.forEach.call(bettingGrid.querySelectorAll('.cell.win'), function(c){ c.classList.remove('win'); });
+
+    var winningNumber = Math.floor(Math.random()*37);
+    spinBallTo(winningNumber, function(){
+      resolveRound(winningNumber);
+    });
+  };
+
+  function resolveRound(n){
+    var col = colorOf(n);
+    var rn = document.getElementById('resultNum');
+    rn.textContent = n;
+    rn.className = col;
+
+    var winKeys = betWinKeysFor(n);
+    var totalReturn = 0;
+    var placedKeys = Object.keys(bets);
+    placedKeys.forEach(function(key){
+      if(winKeys.indexOf(key) !== -1){
+        var mult = payoutMultiplierFor(key);
+        totalReturn += bets[key]*mult;
+        var c = cellByKey(key);
+        if(c) c.classList.add('win');
+      }
+    });
+
+    balance += totalReturn;
+
+    if(totalReturn>0){
+      haptic('success');
+      playTone(660,.12,'triangle',.16);
+      setTimeout(function(){ playTone(880,.16,'triangle',.14); }, 110);
+      document.getElementById('resultText').textContent = n + ' (' + (col==='red'?'красное':col==='black'?'чёрное':'зеро') + ') — выплата ' + fmt(totalReturn);
+      showToast('Выигрыш: ' + fmt(totalReturn) + ' фишек');
+    } else {
+      haptic('error');
+      playTone(140,.3,'sawtooth',.18);
+      document.getElementById('resultText').textContent = n + ' (' + (col==='red'?'красное':col==='black'?'чёрное':'зеро') + ') — не повезло';
+      showToast('Ставки не сыграли');
+    }
+
+    updateBalanceUI();
+
+    setTimeout(function(){
+      bets = {};
+      Array.prototype.forEach.call(bettingGrid.querySelectorAll('.badge'), function(b){ b.remove(); });
+      spinning = false;
+      updateStakeUI();
+    }, 1800);
+  }
+})();
+</script>
+</body>
+</html>
