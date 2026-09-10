@@ -31,13 +31,12 @@ body{
   background:radial-gradient(1100px 700px at 50% -10%, #142018 0%, #0a0d0b 55%, #050605 100%);
   color:var(--txt);
   font-family:var(--mono);
-  min-height:100dvh;
   overflow:hidden;
   user-select:none;
   -webkit-user-select:none;
 }
 #app{
-  min-height:100dvh;
+  height:var(--tg-vh, 100dvh);
   padding: calc(10px + env(safe-area-inset-top)) 10px calc(10px + env(safe-area-inset-bottom));
   display:flex;flex-direction:column;
   gap:8px;
@@ -218,11 +217,27 @@ body{
   if(tg){
     try{tg.ready();}catch(e){}
     try{tg.expand();}catch(e){}
+    try{tg.requestFullscreen && tg.requestFullscreen();}catch(e){}
     try{tg.disableVerticalSwipes && tg.disableVerticalSwipes();}catch(e){}
     try{tg.setHeaderColor && tg.setHeaderColor('#0a0d0b');}catch(e){}
     try{tg.setBackgroundColor && tg.setBackgroundColor('#0a0d0b');}catch(e){}
     try{tg.setBottomBarColor && tg.setBottomBarColor('#0a0d0b');}catch(e){}
   }
+
+  // The app's height must match the ACTUAL usable viewport (not just 100dvh, which can
+  // misbehave inside Telegram's WebView / older browsers), so the layout never grows
+  // taller than the screen and gets clipped. Telegram reports its own stable viewport
+  // height that accounts for its chrome; fall back to window.innerHeight elsewhere.
+  function applyViewportHeight(){
+    var h = (tg && tg.viewportStableHeight) ? tg.viewportStableHeight : (window.innerHeight || document.documentElement.clientHeight);
+    if(h) document.documentElement.style.setProperty('--tg-vh', h + 'px');
+  }
+  applyViewportHeight();
+  if(tg){
+    try{ tg.onEvent && tg.onEvent('viewportChanged', applyViewportHeight); }catch(e){}
+  }
+  window.addEventListener('resize', applyViewportHeight);
+  window.addEventListener('orientationchange', applyViewportHeight);
   function haptic(type){
     if(!tg || !tg.HapticFeedback) return;
     try{
