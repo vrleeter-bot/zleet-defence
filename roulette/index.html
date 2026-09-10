@@ -57,10 +57,10 @@ body{
 .wheelBox{position:relative;width:112px;height:112px;flex-shrink:0}
 .wheelFace{position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.12), 0 0 18px rgba(0,0,0,.5)}
 .wheelHub{position:absolute;left:50%;top:50%;width:26px;height:26px;background:radial-gradient(circle at 35% 30%, #3a3f4a, #101216);border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 2px rgba(255,255,255,.15)}
-.wheelPointer{position:absolute;left:50%;top:-5px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:9px solid var(--acc);transform:translateX(-50%);filter:drop-shadow(0 0 4px rgba(255,106,61,.6))}
 .ballHolder{position:absolute;inset:0;transition:transform 3.2s cubic-bezier(.12,.66,.16,1)}
 .ball{position:absolute;left:50%;top:2px;width:8px;height:8px;background:#fff;border-radius:50%;transform:translateX(-50%);box-shadow:0 0 5px rgba(255,255,255,.8)}
-.numLabel{position:absolute;left:50%;top:50%;font-size:6.5px;font-weight:700;color:rgba(255,255,255,.85);transform-origin:0 0;pointer-events:none}
+.wheelNumbers{position:absolute;inset:0;border-radius:50%;pointer-events:none}
+.wheelNum{position:absolute;left:50%;top:50%;font-size:6px;font-weight:800;color:#fff;text-shadow:0 0 2px rgba(0,0,0,.9), 0 0 1px #000;transform-origin:0 0}
 
 .resultBox{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:96px}
 .resultLabel{font-size:8.5px;letter-spacing:1.5px;color:var(--dim)}
@@ -135,6 +135,25 @@ body{
 .barRow .barTrack{flex:1;height:8px;border-radius:4px;background:rgba(255,255,255,.06);overflow:hidden}
 .barRow .barFill{height:100%;background:linear-gradient(90deg,var(--acc),var(--gold))}
 .barRow .barPct{width:36px;flex-shrink:0;text-align:right;color:var(--txt);font-weight:700}
+
+.trackSection{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-dim)}
+.trackTitle{font-size:9px;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px}
+.trackStrip{display:flex;gap:3px;overflow-x:auto;padding-bottom:8px}
+.trackChip{flex-shrink:0;width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;border-bottom:3px solid transparent}
+.trackChip.red{background:var(--red)}
+.trackChip.black{background:var(--black)}
+.trackChip.green{background:var(--green)}
+.trackChip.g-voisins{border-bottom-color:var(--gold)}
+.trackChip.g-tiers{border-bottom-color:#4fc3d8}
+.trackChip.g-orphelins{border-bottom-color:#b985e0}
+.callBtnsGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.callBtn{padding:9px 8px;border-radius:10px;border:1px solid var(--line-dim);background:rgba(255,255,255,.04);color:var(--txt);font-family:var(--mono);text-align:left}
+.callBtn .ctitle{font-size:10px;font-weight:800;letter-spacing:.5px}
+.callBtn .csub{font-size:8px;color:var(--dim);margin-top:2px}
+.callBtn.voisins .ctitle{color:var(--gold)}
+.callBtn.tiers .ctitle{color:#4fc3d8}
+.callBtn.orphelins .ctitle{color:#b985e0}
+.callBtn.zerospiel .ctitle{color:#7ee0a8}
 </style>
 </head>
 <body>
@@ -157,9 +176,9 @@ body{
   <section id="wheelSection">
     <div class="wheelBox">
       <div class="wheelFace" id="wheelFace"></div>
+      <div class="wheelNumbers" id="wheelNumbers"></div>
       <div class="ballHolder" id="ballHolder"><div class="ball"></div></div>
       <div class="wheelHub"></div>
-      <div class="wheelPointer"></div>
     </div>
     <div class="resultBox">
       <div class="resultLabel">ВЫПАЛО</div>
@@ -240,6 +259,18 @@ body{
   });
   wheelFace.style.background = 'conic-gradient(from 0deg, ' + grad.join(', ') + ')';
 
+  // number labels around the wheel face, positioned at each segment's center angle
+  var wheelNumbers = document.getElementById('wheelNumbers');
+  var WHEEL_LABEL_RADIUS = 44;
+  WHEEL_ORDER.forEach(function(n, i){
+    var angle = i*SEG + SEG/2;
+    var lbl = document.createElement('div');
+    lbl.className = 'wheelNum';
+    lbl.textContent = n;
+    lbl.style.transform = 'translate(-50%,-50%) rotate(' + angle.toFixed(2) + 'deg) translateY(-' + WHEEL_LABEL_RADIUS + 'px) rotate(-' + angle.toFixed(2) + 'deg)';
+    wheelNumbers.appendChild(lbl);
+  });
+
   var ballHolder = document.getElementById('ballHolder');
   var wheelRotation = 0;
 
@@ -260,8 +291,16 @@ body{
   // betting grid build
   var bettingGrid = document.getElementById('bettingGrid');
   var bets = {}; // key -> amount
-  var balance = 10000;
   var STARTING_BALANCE = 10000;
+  var BALANCE_KEY = 'zleet_roulette_balance';
+  var balance = STARTING_BALANCE;
+  try{
+    var savedBalance = localStorage.getItem(BALANCE_KEY);
+    if(savedBalance !== null){
+      var parsed = parseInt(savedBalance, 10);
+      if(!isNaN(parsed) && parsed >= 0) balance = parsed;
+    }
+  }catch(e){}
   var currentChip = 25;
   var spinning = false;
 
@@ -355,10 +394,16 @@ body{
     var sorted = nums.slice().sort(function(a,b){return a-b;});
     return prefix + '-' + sorted.join('-');
   }
-  function addZone(prefix, nums, payout, x, y, w, h){
+  // registers a bet combination for win/payout lookup, without necessarily creating a felt hit-zone
+  // (used both by addZone below, and directly for zero-adjacent combos needed only by the track/call bets)
+  function registerInsideBet(prefix, nums, payout){
     var key = keyFromNums(prefix, nums);
     INSIDE_BETS[key] = { nums: nums.slice(), payout: payout };
     insideBetKeys.push(key);
+    return key;
+  }
+  function addZone(prefix, nums, payout, x, y, w, h){
+    var key = registerInsideBet(prefix, nums, payout);
     var z = document.createElement('div');
     z.className = 'zone';
     z.dataset.key = key;
@@ -406,6 +451,49 @@ body{
     addZone('corner', cB, CORNER_PAYOUT, colBoundary(g5)-7, rowBoundary(2)-7, 14, 14);
   }
 
+  // zero-adjacent combos have no felt hit-zone (zero cell spans the whole top row),
+  // but are needed for the "устные ставки" (announced/call) track bets below
+  registerInsideBet('trio', [0,2,3], STREET_PAYOUT); // 0/2/3 trio, same payout as a street (11:1)
+  registerInsideBet('split', [0,3], SPLIT_PAYOUT);
+
+  // --- track (racetrack) call bets: Voisins du Zéro, Tiers du Cylindre, Orphelins, Zero Spiel ---
+  var VOISINS_NUMS = [22,18,29,7,28,12,35,3,26,0,32,15,19,4,21,2,25];
+  var ORPHELINS_NUMS = [1,20,14,31,9,17,34,6];
+  var TIERS_NUMS = [27,13,36,11,30,8,23,10,5,24,16,33];
+
+  var CALL_BETS = {
+    voisins: { label:'Соседи 0', units:[
+      {key:'trio-0-2-3', count:2},
+      {key:'split-4-7', count:1},
+      {key:'split-12-15', count:1},
+      {key:'split-18-21', count:1},
+      {key:'split-19-22', count:1},
+      {key:'corner-25-26-28-29', count:2},
+      {key:'split-32-35', count:1}
+    ]},
+    tiers: { label:'Тьер', units:[
+      {key:'split-5-8', count:1},
+      {key:'split-10-11', count:1},
+      {key:'split-13-16', count:1},
+      {key:'split-23-24', count:1},
+      {key:'split-27-30', count:1},
+      {key:'split-33-36', count:1}
+    ]},
+    orphelins: { label:'Сироты', units:[
+      {key:'num-1', count:1},
+      {key:'split-6-9', count:1},
+      {key:'split-14-17', count:1},
+      {key:'split-17-20', count:1},
+      {key:'split-31-34', count:1}
+    ]},
+    zerospiel: { label:'Зеро игра', units:[
+      {key:'split-0-3', count:1},
+      {key:'split-12-15', count:1},
+      {key:'num-26', count:1},
+      {key:'split-32-35', count:1}
+    ]}
+  };
+
   // chip selector
   var chipRow = document.getElementById('chipRow');
   var CHIP_VALUES = [10,25,50,100,500,1000];
@@ -425,7 +513,10 @@ body{
   });
 
   function fmt(v){ return v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
-  function updateBalanceUI(){ document.getElementById('balanceVal').textContent = fmt(balance); }
+  function updateBalanceUI(){
+    document.getElementById('balanceVal').textContent = fmt(balance);
+    try{ localStorage.setItem(BALANCE_KEY, String(balance)); }catch(e){}
+  }
   function totalStake(){ return Object.keys(bets).reduce(function(s,k){ return s+bets[k]; }, 0); }
   function updateStakeUI(){
     var t = totalStake();
@@ -466,6 +557,63 @@ body{
     var cell = ev.target.closest('[data-key]');
     if(!cell) return;
     placeBet(cell.dataset.key);
+  });
+
+  function placeCallBet(callKey){
+    if(spinning) return;
+    var def = CALL_BETS[callKey];
+    if(!def) return;
+    var totalUnits = def.units.reduce(function(s,u){ return s+u.count; }, 0);
+    var cost = totalUnits*currentChip;
+    if(balance < cost){ haptic('warning'); showToast('Недостаточно фишек'); return; }
+    balance -= cost;
+    def.units.forEach(function(u){
+      bets[u.key] = (bets[u.key]||0) + currentChip*u.count;
+      renderBadge(u.key);
+    });
+    updateBalanceUI();
+    updateStakeUI();
+    haptic('medium');
+    playTone(700,.05,'square',.08);
+    showToast(def.label + ': ' + fmt(cost) + ' фишек (' + totalUnits + ' юнитов)');
+  }
+
+  // --- track (racetrack) UI: wheel-order number strip + call-bet buttons ---
+  var trackWrap = document.createElement('div');
+  trackWrap.className = 'trackSection';
+  trackWrap.innerHTML = '<div class="trackTitle">УСТНЫЕ СТАВКИ ПО ТРЕКУ</div><div class="trackStrip" id="trackStrip"></div><div class="callBtnsGrid" id="callBtnsGrid"></div>';
+  document.getElementById('tableWrap').appendChild(trackWrap);
+
+  var VOISINS_SET = new Set(VOISINS_NUMS), TIERS_SET = new Set(TIERS_NUMS), ORPHELINS_SET = new Set(ORPHELINS_NUMS);
+  function trackGroupOf(n){
+    if(VOISINS_SET.has(n)) return 'g-voisins';
+    if(TIERS_SET.has(n)) return 'g-tiers';
+    if(ORPHELINS_SET.has(n)) return 'g-orphelins';
+    return '';
+  }
+  var trackStrip = document.getElementById('trackStrip');
+  WHEEL_ORDER.forEach(function(n){
+    var c = document.createElement('div');
+    c.className = 'trackChip ' + colorOf(n) + ' ' + trackGroupOf(n);
+    c.textContent = n;
+    trackStrip.appendChild(c);
+  });
+
+  var callBtnsGrid = document.getElementById('callBtnsGrid');
+  [
+    {key:'voisins', cls:'voisins'},
+    {key:'tiers', cls:'tiers'},
+    {key:'orphelins', cls:'orphelins'},
+    {key:'zerospiel', cls:'zerospiel'}
+  ].forEach(function(d){
+    var def = CALL_BETS[d.key];
+    var units = def.units.reduce(function(s,u){ return s+u.count; }, 0);
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'callBtn ' + d.cls;
+    b.innerHTML = '<div class="ctitle">' + def.label + '</div><div class="csub">' + units + ' юнитов × фишка</div>';
+    b.onclick = function(){ placeCallBet(d.key); };
+    callBtnsGrid.appendChild(b);
   });
 
   document.getElementById('clearBtn').onclick = function(){
