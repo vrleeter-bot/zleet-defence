@@ -245,9 +245,14 @@ body{
   window.addEventListener('orientationchange', applyViewportHeight);
 
   // Defensive extra padding for Telegram's own floating controls (close/menu button,
-  // top-right "..." menu) in case fullscreen-like presentation is ever forced by the
-  // client itself — Telegram reports how much space those controls occupy via
-  // safeAreaInset / contentSafeAreaInset (Bot API 8.0+); zero when not applicable.
+  // top-right "..." menu). This game is opened via a direct app link (t.me/bot/app),
+  // and on mobile clients (iOS/Android) Telegram floats those controls directly over
+  // the page for that launch mode WITHOUT reliably reporting it through
+  // safeAreaInset / contentSafeAreaInset (those often stay 0 outside explicit
+  // fullscreen, depending on client version) — so we can't trust them alone. We use
+  // whatever Telegram does report, but also reserve a baseline top gap on touch
+  // platforms so our topbar never ends up under Telegram's floating buttons even when
+  // the reported inset is 0.
   function applyTelegramSafeArea(){
     var top = 0, bottom = 0;
     if(tg){
@@ -255,6 +260,10 @@ body{
       var csa = tg.contentSafeAreaInset || {};
       top = (sa.top||0) + (csa.top||0);
       bottom = (sa.bottom||0) + (csa.bottom||0);
+      var platform = tg.platform || '';
+      if(platform === 'ios' || platform === 'android'){
+        top = Math.max(top, 54);
+      }
     }
     document.documentElement.style.setProperty('--tg-safe-top', top + 'px');
     document.documentElement.style.setProperty('--tg-safe-bottom', bottom + 'px');
