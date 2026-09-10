@@ -138,8 +138,10 @@ body{
 
 .trackSection{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line-dim)}
 .trackTitle{font-size:9px;letter-spacing:1.5px;color:var(--dim);margin-bottom:6px}
+.trackHint{font-size:8px;color:var(--dim);opacity:.75;margin-bottom:5px}
 .trackStrip{display:flex;gap:3px;overflow-x:auto;padding-bottom:8px}
-.trackChip{flex-shrink:0;width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;border-bottom:3px solid transparent}
+.trackChip{flex-shrink:0;width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;border-bottom:3px solid transparent;cursor:pointer;transition:transform .08s}
+.trackChip:active{transform:scale(.85)}
 .trackChip.red{background:var(--red)}
 .trackChip.black{background:var(--black)}
 .trackChip.green{background:var(--green)}
@@ -631,7 +633,7 @@ body{
   // --- track (racetrack) UI: wheel-order number strip + call-bet buttons ---
   var trackWrap = document.createElement('div');
   trackWrap.className = 'trackSection';
-  trackWrap.innerHTML = '<div class="trackTitle">УСТНЫЕ СТАВКИ ПО ТРЕКУ</div><div class="trackStrip" id="trackStrip"></div><div class="callBtnsGrid" id="callBtnsGrid"></div>';
+  trackWrap.innerHTML = '<div class="trackTitle">УСТНЫЕ СТАВКИ ПО ТРЕКУ</div><div class="trackHint">Соседи: нажмите число — ставка на него и 2 соседей с каждой стороны</div><div class="trackStrip" id="trackStrip"></div><div class="callBtnsGrid" id="callBtnsGrid"></div>';
   document.getElementById('tableWrap').appendChild(trackWrap);
 
   var VOISINS_SET = new Set(VOISINS_NUMS), TIERS_SET = new Set(TIERS_NUMS), ORPHELINS_SET = new Set(ORPHELINS_NUMS);
@@ -641,11 +643,41 @@ body{
     if(ORPHELINS_SET.has(n)) return 'g-orphelins';
     return '';
   }
+  // "Соседи" (neighbours) bet: click any number on the track strip to place straight-up
+  // bets on that number plus its two physical wheel-neighbours on each side (5 numbers
+  // total, 1 chip each) — the fifth type of announced/call bet, distinct from the fixed
+  // Voisins du Zéro/Tiers/Orphelins/Zero Spiel sector bets below.
+  function neighboursOf(n){
+    var i = WHEEL_ORDER.indexOf(n);
+    var nums = [];
+    for(var d=-2; d<=2; d++){ nums.push(WHEEL_ORDER[(i+d+37)%37]); }
+    return nums;
+  }
+  function placeNeighboursBet(n){
+    if(spinning) return;
+    var nums = neighboursOf(n);
+    var cost = nums.length*currentChip;
+    if(balance < cost){ haptic('warning'); showToast('Недостаточно фишек'); return; }
+    balance -= cost;
+    nums.forEach(function(num){
+      var key = 'num-'+num;
+      bets[key] = (bets[key]||0) + currentChip;
+      renderBadge(key);
+    });
+    updateBalanceUI();
+    updateStakeUI();
+    haptic('medium');
+    playTone(700,.05,'square',.08);
+    showToast('Соседи ' + n + ': ' + fmt(cost) + ' фишек (' + nums.length + ' юнитов)');
+  }
+
   var trackStrip = document.getElementById('trackStrip');
   WHEEL_ORDER.forEach(function(n){
     var c = document.createElement('div');
     c.className = 'trackChip ' + colorOf(n) + ' ' + trackGroupOf(n);
     c.textContent = n;
+    c.title = 'Соседи ' + n + ' (' + neighboursOf(n).join(', ') + ')';
+    c.onclick = function(){ placeNeighboursBet(n); };
     trackStrip.appendChild(c);
   });
 
